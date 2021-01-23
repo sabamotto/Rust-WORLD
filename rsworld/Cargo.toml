@@ -1,6 +1,6 @@
 [package]
 name = "rsworld"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["BiggieBoo18"]
 edition = "2018"
 
@@ -12,4 +12,4 @@ keywords = ["Rust-WORLD", "WORLD", "world", "vocoder"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rsworld-sys = "0.1.0"
+rsworld-sys = { path = "../rsworld-sys" }

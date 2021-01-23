@@ -1,5 +1,5 @@
 [package]
-name    = "rust_world"
+name    = "Rust-WORLD"
 version = "0.1.2"
 authors = ["BiggieBoo18"]
 edition = "2018"
