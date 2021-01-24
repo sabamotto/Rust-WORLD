@@ -1,6 +1,6 @@
 fn main() {
-    let world_dir:    &str = "World";
-    let world_src:    &str = &format!("{}/{}", world_dir, "src");
+    let world_dir: &str = "World";
+    let world_src: &str = &format!("{}/{}", world_dir, "src");
     let _world_header: &str = &format!("{}/{}", world_src, "world");
 
     let file_names = [
@@ -14,17 +14,16 @@ fn main() {
         "matlabfunctions",
         "stonemask",
         "synthesis",
-        "synthesisrealtime"
+        "synthesisrealtime",
     ];
     for file_name in &file_names {
         cc::Build::new()
-	    .cpp(true)
+            .cpp(true)
             // .warnings(true)
-            .flag("-O1")
+            .flag("-O4")
             .flag("-w")
             .file(&format!("{}/{}.cpp", world_src, file_name))
             .include(world_src)
             .compile(&format!("{}", file_name));
     }
 }
-
