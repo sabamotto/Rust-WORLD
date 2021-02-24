@@ -10,12 +10,16 @@ pub struct CheapTrickOption {
 }
 
 impl CheapTrickOption {
-    pub fn new(fs: c_int) -> Self {
-        unsafe {
-            let mut option = std::mem::MaybeUninit::uninit().assume_init();
-            InitializeCheapTrickOption(fs, &mut option as *mut _);
-            option
+    pub fn new(fs: c_int, f0_floor: Option<f64>, fft_size: Option<i32>) -> Self {
+        let mut option = CheapTrickOption {
+            q1: -0.15,
+            f0_floor: f0_floor.unwrap_or(71.0),
+            fft_size: 2048,
+        };
+        if fft_size.is_none() {
+            unsafe { option.fft_size = GetFFTSizeForCheapTrick(fs, &mut option) }
         }
+        option
     }
 }
 
@@ -32,7 +36,7 @@ extern "C" {
         spectrogram: *mut *mut c_double,
     );
     pub fn InitializeCheapTrickOption(fs: c_int, option: *mut CheapTrickOption);
-    pub fn GetFFTSizeForCheapTrick(fs: c_int, option: *mut CheapTrickOption);
+    pub fn GetFFTSizeForCheapTrick(fs: c_int, option: *mut CheapTrickOption) -> c_int;
 }
 
 // Codec
@@ -211,12 +215,12 @@ mod tests {
     }
 
     // CheapTrick test
-    use crate::{CheapTrick, CheapTrickOption, GetFFTSizeForCheapTrick};
+    use crate::{CheapTrick, CheapTrickOption};
 
     #[test]
     fn test_initialize_cheaptrick_option() {
         let fs = 44100;
-        let option = CheapTrickOption::new(fs);
+        let option = CheapTrickOption::new(fs, None, None);
         assert_eq!(
             option,
             CheapTrickOption {
@@ -230,11 +234,8 @@ mod tests {
     #[test]
     fn test_get_fft_size_for_cheaptrick() {
         let fs = 44100;
-        let mut option = CheapTrickOption::new(fs);
-        unsafe {
-            GetFFTSizeForCheapTrick(fs, &mut option as *mut _);
-            assert_eq!(option.fft_size, 2048);
-        }
+        let option = CheapTrickOption::new(fs, Some(40.0), None);
+        assert_eq!(option.fft_size, 4096);
     }
 
     #[test]
@@ -245,10 +246,7 @@ mod tests {
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
         let f0_length = f0.len() as i32;
-        let mut option = CheapTrickOption::new(fs);
-        unsafe {
-            GetFFTSizeForCheapTrick(fs, &mut option as *mut _);
-        }
+        let option = CheapTrickOption::new(fs, None, None);
         let xl = (option.fft_size / 2 + 1) as usize;
         let yl = f0_length as usize;
         let mut spectrogram = vec![vec![0.0; xl]; yl];
@@ -369,10 +367,7 @@ mod tests {
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
         let f0_length = f0.len() as i32;
-        let mut option = CheapTrickOption::new(fs);
-        unsafe {
-            GetFFTSizeForCheapTrick(fs, &mut option as *mut _);
-        }
+        let option = CheapTrickOption::new(fs, None, None);
         let number_of_dimensions = 256_i32;
         let xl = (option.fft_size / 2 + 1) as usize;
         let yl = f0_length as usize;
@@ -429,10 +424,7 @@ mod tests {
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
         let f0_length = f0.len() as i32;
-        let mut option = CheapTrickOption::new(fs);
-        unsafe {
-            GetFFTSizeForCheapTrick(fs, &mut option as *mut _);
-        }
+        let option = CheapTrickOption::new(fs, None, None);
         let number_of_dimensions = 256_i32;
         let xl = (option.fft_size / 2 + 1) as usize;
         let yl = f0_length as usize;
@@ -650,7 +642,7 @@ mod tests {
             );
         }
         assert_eq!(temporal_positions, vec![0.0, 0.005]);
-        assert_eq!(f0, vec![0.0, 0.0]);
+        assert_eq!(f0[0], 0.0);
     }
 
     // StoneMask test
@@ -720,10 +712,7 @@ mod tests {
             );
         }
 
-        let mut option = CheapTrickOption::new(fs);
-        unsafe {
-            GetFFTSizeForCheapTrick(fs, &mut option as *mut _);
-        }
+        let option = CheapTrickOption::new(fs, None, None);
         let xl = (option.fft_size / 2 + 1) as usize;
         let yl = f0_length as usize;
         let mut spectrogram = vec![vec![0.0; xl]; yl];

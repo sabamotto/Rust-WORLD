@@ -10,13 +10,12 @@ pub fn cheaptrick(
     fs: i32,
     temporal_positions: &Vec<f64>,
     f0: &Vec<f64>,
-    option: &mut CheapTrickOption,
+    f0_floor: Option<f64>,
+    fft_size: Option<i32>,
 ) -> Vec<Vec<f64>> {
     let x_length: i32 = x.len() as i32;
     let f0_length: i32 = f0.len() as i32;
-    unsafe {
-        GetFFTSizeForCheapTrick(fs, option as *mut _);
-    }
+    let option = CheapTrickOption::new(fs, f0_floor, fft_size);
     let mut spectrogram = vec![vec![0.0; (option.fft_size / 2 + 1) as usize]; f0_length as usize];
     let mut spectrogram_ptr = spectrogram
         .iter_mut()
@@ -31,7 +30,7 @@ pub fn cheaptrick(
             temporal_positions.as_ptr(),
             f0.as_ptr(),
             f0_length,
-            option as *const _,
+            &option,
             spectrogram_ptr,
         );
     }
@@ -43,7 +42,7 @@ pub fn get_number_of_aperiodicities(fs: i32) -> i32 {
 }
 
 pub fn code_aperiodicity(aperiodicity: &Vec<Vec<f64>>, f0_length: i32, fs: i32) -> Vec<Vec<f64>> {
-    let mut cheaptrick_option = CheapTrickOption::new(fs);
+    let mut cheaptrick_option = CheapTrickOption::new(fs, None, None);
     unsafe {
         GetFFTSizeForCheapTrick(fs, &mut cheaptrick_option as *mut _);
     }
@@ -80,7 +79,7 @@ pub fn decode_aperiodicity(
     f0_length: i32,
     fs: i32,
 ) -> Vec<Vec<f64>> {
-    let mut cheaptrick_option = CheapTrickOption::new(fs);
+    let mut cheaptrick_option = CheapTrickOption::new(fs, None, None);
     unsafe {
         GetFFTSizeForCheapTrick(fs, &mut cheaptrick_option as *mut _);
     }
@@ -180,7 +179,7 @@ pub fn d4c(
 ) -> Vec<Vec<f64>> {
     let x_length = x.len() as i32;
     let f0_length = f0.len() as i32;
-    let mut cheaptrick_option = CheapTrickOption::new(fs);
+    let mut cheaptrick_option = CheapTrickOption::new(fs, None, None);
     unsafe {
         GetFFTSizeForCheapTrick(fs, &mut cheaptrick_option as *mut _);
     }
@@ -307,7 +306,7 @@ pub fn synthesis(
 #[cfg(test)]
 mod tests {
     // CheapTrick test
-    use crate::{cheaptrick, CheapTrickOption};
+    use crate::cheaptrick;
 
     #[test]
     fn test_cheaptrick() {
@@ -315,10 +314,9 @@ mod tests {
         let fs = 44100;
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
-        let mut option = CheapTrickOption::new(fs);
-        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, &mut option);
+        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, None, None);
         assert_eq!(spectrogram.len(), f0.len());
-        assert_eq!(spectrogram[0].len(), (option.fft_size / 2 + 1) as usize);
+        assert_eq!(spectrogram[0].len(), 1025);
     }
 
     // Codec test
@@ -372,14 +370,13 @@ mod tests {
         let fs = 44100;
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
-        let mut option = CheapTrickOption::new(fs);
-        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, &mut option);
+        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, None, None);
         let number_of_dimensions = 256;
         let coded_spectrogram = code_spectral_envelope(
             &spectrogram,
             f0.len() as i32,
             fs,
-            option.fft_size,
+            2048,
             number_of_dimensions,
         );
         assert_eq!(coded_spectrogram.len(), f0.len());
@@ -392,20 +389,20 @@ mod tests {
         let fs = 44100;
         let temporal_positions = vec![0.0, 0.005];
         let f0 = vec![0.0, 0.0];
-        let mut option = CheapTrickOption::new(fs);
-        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, &mut option);
+        let fft_size: i32 = 2048;
+        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, None, Some(fft_size));
         let number_of_dimensions = 256;
         let coded_spectrogram = code_spectral_envelope(
             &spectrogram,
             f0.len() as i32,
             fs,
-            option.fft_size,
+            2048,
             number_of_dimensions,
         );
         let spectrogram =
-            decode_spectral_envelope(&coded_spectrogram, f0.len() as i32, fs, option.fft_size);
+            decode_spectral_envelope(&coded_spectrogram, f0.len() as i32, fs, fft_size);
         assert_eq!(spectrogram.len(), f0.len());
-        assert_eq!(spectrogram[0].len(), (option.fft_size / 2 + 1) as usize);
+        assert_eq!(spectrogram[0].len(), 1025 as usize);
     }
 
     // D4C test
@@ -474,8 +471,7 @@ mod tests {
         let (temporal_positions, f0) = dio(&x, fs, &option);
         let frame_period = option.frame_period;
         let f0 = stonemask(&x, fs, &temporal_positions, &f0);
-        let mut option = CheapTrickOption::new(fs);
-        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, &mut option);
+        let spectrogram = cheaptrick(&x, fs, &temporal_positions, &f0, None, None);
         let option = D4COption::new();
         let aperiodicity = d4c(&x, fs, &temporal_positions, &f0, &option);
         let y = synthesis(&f0, &spectrogram, &aperiodicity, frame_period, fs);
